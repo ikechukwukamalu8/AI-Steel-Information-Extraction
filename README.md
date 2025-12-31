@@ -1,7 +1,7 @@
 # 🔥 AI-Steel: Legacy Metallurgical Document Extraction & Tensile Strength Prediction
 
 This project builds a pipeline to extract alloy composition, quenching/temper parameters,
-microstructure notes, and mechanical properties from metallurgical PDFs, then trains ML models
+microstructure notes, and mechanical properties from metallurgical documents, then trains ML models
 to predict tensile strength.
 
 ## 🔍 Features
