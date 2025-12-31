@@ -1,0 +1,11 @@
+pandas
+numpy
+scikit-learn
+PyPDF2
+pdfplumber
+spacy
+transformers
+torch
+regex
+tabula-py
+matplotlib
