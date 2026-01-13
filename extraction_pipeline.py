@@ -1,13 +1,10 @@
 """
 AI-STEEL: Legacy Metallurgical Extraction & Property Prediction
---------------------------------------------------------------
-1. Extract text from PDFs
-2. Extract alloy composition, heat treatment parameters & mechanical properties
-3. Generate structured CSV dataset
-4. Train ML model to predict tensile strength
-5. Plot results & export predictions
-
 Author: Kamalu Ikechukwu
+Description: 
+An end-to-end pipeline that extracts metallurgical data from unstructured PDFs, 
+merges it with structured CSV data, and trains a Random Forest model 
+to predict tensile strength.
 """
 
 import os
@@ -15,122 +12,154 @@ import re
 import pdfplumber
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, r2_score
-import matplotlib.pyplot as plt
 
-DATA_PATH = "data/"  # 🔥 Change if needed
-
+# --- CONFIGURATION ---
+DATA_DIR = "data"
+RESULTS_DIR = "results"
+MAIN_DATA_PATH = os.path.join(DATA_DIR, "final_steel_data.csv")
 PDF_FILES = [
     "Old Laboratory Notebook.pdf",
     "Metallurgical Study – AISI Steel Grades.pdf"
 ]
+FINAL_COMBINED_CSV = os.path.join(RESULTS_DIR, "combined_steel_data.csv")
 
-OUTPUT_CSV = "results/extracted_steel_properties.csv"
-
+# Ensure directories exist
+os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # -----------------------------------------------------------
-# 1️⃣ PDF TEXT EXTRACTION
+# 1. PDF TEXT EXTRACTION
 # -----------------------------------------------------------
 def extract_pdf_text(filepath):
+    """Reads text from a PDF file."""
     text = ""
+    if not os.path.exists(filepath):
+        print(f"File not found: {filepath}")
+        return ""
+    
     with pdfplumber.open(filepath) as pdf:
         for page in pdf.pages:
             text += page.extract_text() or ""
     return text
 
-
 # -----------------------------------------------------------
-# 2️⃣ SCIENTIFIC ENTITY EXTRACTION (regex-based)
+# 2. SCIENTIFIC ENTITY EXTRACTION (Regex)
 # -----------------------------------------------------------
 def extract_entities(text):
-    composition = re.findall(r"([A-Z][a-z]?\d{0,2}\s*\d{1,3}\.?\d*%)", text)
+    """
+    Extracts quenching temp, tempering time, and tensile strength using regex.
+    Patterns are adjusted to handle scientific notation and units.
+    """
+    # Regex for Quenching Temperature (e.g., 830°C or 830C)
     quench_temp = re.findall(r"quench(?:ed)? at (\d{2,4}) ?°?C", text, re.I)
-    temper_temp = re.findall(r"temper(?:ed)? at (\d{2,4}) ?°?C", text, re.I)
+    
+    # Regex for Tempering Time (e.g., 2 hr or 1.5 hr)
+    temper_time = re.findall(r"temper(?:ing)?\s*(?:time)?.*?(\d+\.?\d*)\s?hr", text, re.I)
+    
+    # Regex for Tensile Strength (e.g., 620 MPa)
     tensile_strength = re.findall(r"(\d{3,4})\s?MPa", text, re.I)
-
+    
     return {
-        "composition": ",".join(composition) if composition else None,
-        "quenching_temp_C": quench_temp[0] if quench_temp else None,
-        "tempering_temp_C": temper_temp[0] if temper_temp else None,
-        "tensile_strength_MPa": tensile_strength[0] if tensile_strength else None
+        "quench_temp": float(quench_temp[0]) if quench_temp else None,
+        "temper_time": float(temper_time[0]) if temper_time else None,
+        "tensile_strength": float(tensile_strength[0]) if tensile_strength else None
     }
 
-
 # -----------------------------------------------------------
-# 3️⃣ PROCESS PDFs → DataFrame
+# 3. DATA PROCESSING & MERGING
 # -----------------------------------------------------------
-def process_pdf_files():
-    extracted_rows = []
+def prepare_dataset():
+    """Extracts data from PDFs and merges it with the existing CSV dataset."""
+    print("--- Starting Data Extraction & Merging ---")
     
-    for pdf in PDF_FILES:
-        text = extract_pdf_text(DATA_PATH + pdf)
+    # Extract from PDFs
+    extracted_rows = []
+    for pdf_name in PDF_FILES:
+        path = os.path.join(DATA_DIR, pdf_name)
+        text = extract_pdf_text(path)
         entities = extract_entities(text)
-        
-        row = {
-            "Source": pdf,
-            "Composition": entities["composition"],
-            "Quench_Temp_C": entities["quenching_temp_C"],
-            "Temper_Temp_C": entities["tempering_temp_C"],
-            "Tensile_Strength_MPa": entities["tensile_strength_MPa"]
-        }
-        extracted_rows.append(row)
+        entities['source'] = pdf_name
+        extracted_rows.append(entities)
+    
+    pdf_df = pd.DataFrame(extracted_rows)
+    pdf_df = pdf_df.dropna(subset=['quench_temp', 'temper_time', 'tensile_strength'])
+    
+    print(f"Extracted {len(pdf_df)} valid samples from legacy PDFs.")
 
-    df = pd.DataFrame(extracted_rows)
-    df.to_csv(OUTPUT_CSV, index=False)
+    # Load Main CSV
+    if os.path.exists(MAIN_DATA_PATH):
+        main_df = pd.read_csv(MAIN_DATA_PATH)
+        # Ensure column names match for merging
+        # Current main_df columns: grade, carbon_pct, manganese_pct, quench_temp, temper_time, tensile_strength
+        combined_df = pd.concat([main_df, pdf_df], ignore_index=True)
+    else:
+        print(f"Warning: {MAIN_DATA_PATH} not found. Using PDF data only.")
+        combined_df = pdf_df
 
-    print("\n✔ Extraction Complete →", OUTPUT_CSV)
-    print(df)
-    return df
-
+    # Save final dataset
+    combined_df.to_csv(FINAL_COMBINED_CSV, index=False)
+    print(f"Combined dataset saved to: {FINAL_COMBINED_CSV}")
+    return combined_df
 
 # -----------------------------------------------------------
-# 4️⃣ ML MODEL — Predict Strength from Parameters
+# 4. MACHINE LEARNING MODEL
 # -----------------------------------------------------------
-def train_ml_model(dataset_path="final_steel_data.csv"):
-    df = pd.read_csv(dataset_path)
-
-    df = df.dropna()
-    df["Quench_Temp_C"] = df["Quench_Temp_C"].astype(float)
-    df["Temper_Temp_C"] = df["Temper_Temp_C"].astype(float)
-
-    X = df[["Quench_Temp_C", "Temper_Temp_C"]]
-    y = df["Tensile_Strength_MPa"]
-
+def train_and_evaluate(df):
+    """Trains a Random Forest Regressor and plots performance."""
+    print("\n--- Training Machine Learning Model ---")
+    
+    # Clean data for ML
+    ml_data = df.dropna(subset=['quench_temp', 'temper_time', 'tensile_strength'])
+    
+    X = ml_data[["quench_temp", "temper_time"]]
+    y = ml_data["tensile_strength"]
+    
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.25, random_state=42
+        X, y, test_size=0.20, random_state=42
     )
-
-    model = RandomForestRegressor(n_estimators=200)
+    
+    model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
-    preds = model.predict(X_test)
-
-    print("\n📊 Model Performance")
-    print("MAE:", mean_absolute_error(y_test, preds))
-    print("R2 Score:", r2_score(y_test, preds))
-
-    # Plot Predictions
-    plt.scatter(y_test, preds)
-    plt.xlabel("Actual (MPa)")
-    plt.ylabel("Predicted (MPa)")
-    plt.title("Tensile Strength Prediction")
+    
+    # Evaluation
+    predictions = model.predict(X_test)
+    mae = mean_absolute_error(y_test, predictions)
+    r2 = r2_score(y_test, predictions)
+    
+    print(f"Model Performance:")
+    print(f"Mean Absolute Error: {mae:.2f} MPa")
+    print(f"R2 Score: {r2:.4f}")
+    
+    # Plotting
+    plt.figure(figsize=(10, 6))
+    plt.scatter(y_test, predictions, alpha=0.6, label="Predicted vs Actual")
+    plt.plot([y.min(), y.max()], [y.min(), y.max()], color='red', linestyle='--', label="Perfect Prediction")
+    plt.xlabel("Actual Tensile Strength (MPa)")
+    plt.ylabel("Predicted Tensile Strength (MPa)")
+    plt.title("AI-STEEL: Prediction Accuracy")
+    plt.legend()
+    plt.grid(True)
+    
+    plot_path = os.path.join(RESULTS_DIR, "prediction_plot.png")
+    plt.savefig(plot_path)
+    print(f"Plot saved to: {plot_path}")
     plt.show()
 
-    return model
-
-
 # -----------------------------------------------------------
-# RUNTIME PIPELINE
+# MAIN EXECUTION
 # -----------------------------------------------------------
 if __name__ == "__main__":
-    print("\n====== AI-STEEL EXTRACTION & PREDICTION PIPELINE ======\n")
-
-    os.makedirs("results", exist_ok=True)
-
-    extracted_df = process_pdf_files()
-
-    # Load your CSV + PDF extracted CSV together & merge later if you choose
-    model = train_ml_model("final_steel_data.csv")
-
-    print("\n🔥 Pipeline Fully Executed — Extraction + ML Completed\n")
+    print("==============================================")
+    print("   AI-STEEL RESEARCH PIPELINE INITIALIZED")
+    print("==============================================\n")
+    
+    # 1. Prepare/Merge Data
+    combined_data = prepare_dataset()
+    
+    # 2. Run ML Pipeline
+    train_and_evaluate(combined_data)
+    
+    print("\nPipeline Execution Complete.")
