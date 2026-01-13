@@ -9,14 +9,6 @@ This project is a multi-modal pipeline designed to bridge the gap between legacy
 - ML regression model for tensile strength prediction
 - Expandable to SciBERT/MatsciBERT entity recognition
 
-
-## 🔍 Features
-- PDF text + table extraction
-- Scientific entity extraction using spaCy + regex
-- Structured dataset generation (.csv)
-- ML regression model for tensile strength prediction
-- Expandable to SciBERT/MatsciBERT entity recognition
-
 ## 📁 Files
 | File | Type | Purpose |
 |---|---|---|
