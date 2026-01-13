@@ -3,9 +3,10 @@
 This project is a multi-modal pipeline designed to bridge the gap between legacy metallurgical knowledge and modern machine learning. It features a robust extraction engine for unstructured PDFs and a predictive model that integrates chemical composition and heat treatment for sustainable material optimization.
 
 ## 🔍 Features
-- PDF text + table extraction
-- Scientific entity extraction using spaCy + regex
+- PDF text + table extraction: Automated digitization of legacy records.
+- Scientific entity extraction using spaCy + regex: Pattern-based recognition of alloy chemistry (C, Mn, etc.).
 - Structured dataset generation (.csv)
+- Sustainable Analytics: CO2 footprint estimation based on heat-treatment energy requirements.
 - ML regression model for tensile strength prediction
 - Expandable to SciBERT/MatsciBERT entity recognition
 
