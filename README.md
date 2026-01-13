@@ -1,6 +1,14 @@
 # 🔥 AI-STEEL: Legacy Metallurgical Extraction & Sustainable Property Prediction
 
-This project demonstrates the extraction of scientific knowledge from legacy PDF documents and integrates it into a sustainable ML framework. It estimates the carbon intensity of manufacturing processes alongside mechanical property prediction, enabling multi-objective material design.
+This project builds a pipeline to extract alloy composition, quenching/temper parameters, microstructure notes, and mechanical properties from metallurgical PDFs, then trains Machine Learning models to predict tensile strength.
+
+## 🔍 Features
+- PDF text + table extraction
+- Scientific entity extraction using spaCy + regex
+- Structured dataset generation (.csv)
+- ML regression model for tensile strength prediction
+- Expandable to SciBERT/MatsciBERT entity recognition
+
 
 ## 🔍 Features
 - PDF text + table extraction
