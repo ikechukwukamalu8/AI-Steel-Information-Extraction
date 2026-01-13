@@ -1,10 +1,8 @@
 """
-AI-STEEL: Legacy Metallurgical Extraction & Property Prediction
+AI-STEEL: Legacy Metallurgical Extraction & Sustainable Property Prediction
 Author: Kamalu Ikechukwu
 Description: 
-An end-to-end pipeline that extracts metallurgical data from unstructured PDFs, 
-merges it with structured CSV data, and trains a Random Forest model 
-to predict tensile strength.
+An end-to-end pipeline that extracts metallurgical data from unstructured PDFs, merges it with structured CSV data, and trains a Random Forest model to predict tensile strength.
 """
 
 import os
