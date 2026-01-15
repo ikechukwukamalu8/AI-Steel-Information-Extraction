@@ -9,5 +9,4 @@ AI-Steel-Information-Extraction/
 │   └── extraction_pipeline.py   ← paste the full python pipeline here
 │
 ├── README.md                    ← main page of your repository
-├── LICENSE                      ← optional (MIT recommended)
-└── results/                     ← store predicted CSV + plots later
+└── results/                     ← store predicted CSV + plots 
