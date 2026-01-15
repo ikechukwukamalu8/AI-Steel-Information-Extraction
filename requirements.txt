@@ -1,3 +1,6 @@
+# AI-STEEL Project Dependencies
+# ----------------------------
+
 # Data Extraction
 pdfplumber>=0.10.0
 
