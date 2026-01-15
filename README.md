@@ -8,6 +8,7 @@ This project implements a multi-modal materials informatics pipeline designed to
 - Sustainable Materials Design: Real-time Carbon Footprint (CO2) estimation based on thermodynamic energy requirements of heat-treatment cycles.
 - Domain-Aware Imputation: Intelligent data fusion that fills gaps in chemical compositions using grade-specific statistical averages.
 - Predictive Analytics: Random Forest regression for Tensile Strength prediction.
+- Advanced Analytics: Generates feature importance rankings and property correlation matrices.
   
 ## 📁 Files
 | File | Type | Purpose |
