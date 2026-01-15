@@ -20,24 +20,26 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score
 
-# --- CONFIGURATION ---
-# Designed to run from the root of: AI-Steel-Information-Extraction/
-DATA_DIR = "data"
-RESULTS_DIR = "results"
+# --- DIRECTORY CONFIGURATION ---
+# Uses relative paths so the project works immediately after cloning
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+RESULTS_DIR = os.path.join(BASE_DIR, "results")
 MAIN_DATA_PATH = os.path.join(DATA_DIR, "final_steel_data.csv")
-PDF_FILES = ["Old Laboratory Notebook.pdf", "Metallurgical Study – AISI Steel Grades.pdf"]
 OUTPUT_CSV = os.path.join(RESULTS_DIR, "combined_steel_data_final.csv")
 
+# List of PDFs expected in the /data folder
+PDF_FILES = ["Old Laboratory Notebook.pdf", "Metallurgical Study – AISI Steel Grades.pdf"]
+
+# Ensure directories exist
+os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # -----------------------------------------------------------
-# 1. NLP LAYER: SCI-ENTITY EXTRACTION (SciBERT-Ready)
+# 1. NLP LAYER: SCI-ENTITY EXTRACTION
 # -----------------------------------------------------------
 def scibert_entity_extractor(text_chunk):
-    """
-    INTERFACE LAYER: Mimics a Transformer NER model. Currently uses 
-    high-precision regex for numerical extraction from legacy PDF strings.
-    """
+    """Uses regex to simulate transformer-based entity extraction."""
     entities = {
         "grade": re.search(r"(\d{4})\s*(?:steel|grade|alloy)", text_chunk, re.I) or \
                  re.search(r"(?:Grade|steel)\s*(\d{4})", text_chunk, re.I),
@@ -51,15 +53,10 @@ def scibert_entity_extractor(text_chunk):
 
 def extract_samples_from_text(text, filename):
     samples = []
-    # Split text into chunks based on sample headers
     chunks = re.split(r"(Specimen:|Sample [A-Z])", text)
-    
     for chunk in chunks:
         if len(chunk) < 20: continue 
-        
-        # Call the modular extractor
         ext = scibert_entity_extractor(chunk)
-
         if ext["quench"] or ext["strength"]:
             samples.append({
                 "grade": ext["grade"].group(1) if ext["grade"] else "Unknown",
@@ -76,12 +73,8 @@ def extract_samples_from_text(text, filename):
 # 2. SUSTAINABILITY MODULE: THERMODYNAMIC FOOTPRINT
 # -----------------------------------------------------------
 def calculate_carbon_footprint(temp_c):
-    """
-    Estimates CO2 (kg) to heat 1kg of steel to quench temperature.
-    E = (m * Cp * dT) / efficiency. 
-    Assumes Cp=0.49 kJ/kgK, Efficiency=60%, Emission Factor=0.4 kgCO2/kWh.
-    """
     if pd.isna(temp_c): return 0
+    # Formula for industrial energy consumption of heat treatment
     energy_kwh = (1.0 * 0.49 * (temp_c - 25)) / (0.6 * 3600)
     return energy_kwh * 0.4 
 
@@ -89,65 +82,89 @@ def calculate_carbon_footprint(temp_c):
 # 3. DATA FUSION & SMART IMPUTATION
 # -----------------------------------------------------------
 def prepare_dataset():
-    print("--- 📂 Phase 1: NLP Knowledge Extraction ---")
+    print(f"--- 📂 Phase 1: NLP Knowledge Extraction ---")
     all_extracted = []
-    
     for pdf_name in PDF_FILES:
         path = os.path.join(DATA_DIR, pdf_name)
         if os.path.exists(path):
             with pdfplumber.open(path) as pdf:
                 text = "\n".join([p.extract_text() or "" for p in pdf.pages])
                 all_extracted.extend(extract_samples_from_text(text, pdf_name))
+        else:
+            print(f"Warning: {pdf_name} not found in {DATA_DIR}")
     
     pdf_df = pd.DataFrame(all_extracted)
-    
     print("--- 📂 Phase 2: Domain-Aware Imputation & Fusion ---")
+    
     if os.path.exists(MAIN_DATA_PATH):
         main_df = pd.read_csv(MAIN_DATA_PATH)
         df = pd.concat([main_df, pdf_df], ignore_index=True)
         
-        # DOMAIN LOGIC: Use Steel Grade averages to fill chemistry gaps
+        # Fill missing chemical values based on steel grade averages
         df['carbon_pct'] = df.groupby('grade')['carbon_pct'].transform(lambda x: x.fillna(x.mean()))
         df['manganese_pct'] = df.groupby('grade')['manganese_pct'].transform(lambda x: x.fillna(x.mean()))
         
-        # Fallback and CO2 Calculation
         df = df.fillna(df.mean(numeric_only=True))
         df['carbon_footprint_kgCO2'] = df['quench_temp'].apply(calculate_carbon_footprint)
         
         df.to_csv(OUTPUT_CSV, index=False)
-        print(f"Master dataset saved to: {OUTPUT_CSV}")
+        print(f"Successfully saved merged data to: {OUTPUT_CSV}")
         return df
-    return pdf_df
+    else:
+        print(f"Error: {MAIN_DATA_PATH} missing. Using extracted data only.")
+        return pdf_df
 
 # -----------------------------------------------------------
-# 4. RESEARCH ANALYTICS (ML)
+# 4. RESEARCH ANALYTICS (ML) WITH FEATURE IMPORTANCE
 # -----------------------------------------------------------
 def train_research_model(df):
+    if df.empty:
+        print("Dataset is empty. Skipping ML phase.")
+        return
+
     print("--- 🤖 Phase 3: Predictive Modeling & Evaluation ---")
     features = ["carbon_pct", "manganese_pct", "quench_temp", "temper_time"]
     X = df[features]
     y = df["tensile_strength"]
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
     model = RandomForestRegressor(n_estimators=250, random_state=42)
     model.fit(X_train, y_train)
     
-    r2 = r2_score(y_test, model.predict(X_test))
+    predictions = model.predict(X_test)
+    r2 = r2_score(y_test, predictions)
     print(f"Model Performance Score (R2): {r2:.4f}")
 
-    # Plotting Accuracy for GitHub
-    plt.figure(figsize=(8, 6))
-    sns.regplot(x=y_test, y=model.predict(X_test), scatter_kws={'alpha':0.4}, line_kws={'color':'red'})
-    plt.title(f"AI-STEEL: Actual vs Predicted Strength\n(R2 Score: {r2:.3f})")
-    plt.xlabel("Actual Tensile Strength (MPa)")
-    plt.ylabel("AI Predicted Strength (MPa)")
+    # Feature Importance
+    importances = model.feature_importances_
+    feat_imp_df = pd.DataFrame({
+        'Feature': features,
+        'Importance': importances
+    }).sort_values(by='Importance', ascending=False)
     
-    plt.savefig(os.path.join(RESULTS_DIR, "accuracy_plot.png"))
-    print(f"Plot saved to: {RESULTS_DIR}/accuracy_plot.png")
+    print("\nFeature Importance Rankings:")
+    print(feat_imp_df)
+
+    # Plotting
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+
+    # Actual vs Predicted
+    sns.regplot(x=y_test, y=predictions, scatter_kws={'alpha':0.4, 'color':'teal'}, 
+                line_kws={'color':'red'}, ax=ax1)
+    ax1.set_title(f"Actual vs Predicted Strength (R2: {r2:.3f})")
+    ax1.set_xlabel("Actual Tensile Strength (MPa)")
+    ax1.set_ylabel("AI Predicted Strength (MPa)")
+
+    # Feature Importance Chart
+    sns.barplot(x='Importance', y='Feature', data=feat_imp_df, palette='viridis', ax=ax2)
+    ax2.set_title("Metallurgical Drivers of Strength")
+    ax2.set_xlabel("Relative Importance Weight")
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(RESULTS_DIR, "model_metrics.png"))
+    print(f"Plots saved to: {RESULTS_DIR}")
     plt.show()
 
 if __name__ == "__main__":
     final_data = prepare_dataset()
-    if not final_data.empty:
-        train_research_model(final_data)
+    train_research_model(final_data)
