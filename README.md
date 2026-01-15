@@ -1,15 +1,14 @@
 # 🔥 AI-STEEL: Legacy Metallurgical Extraction & Sustainable Property Prediction
 
-This project is a multi-modal pipeline designed to bridge the gap between legacy metallurgical knowledge and modern machine learning. It features a robust extraction engine for unstructured PDFs and a predictive model that integrates chemical composition and heat treatment for sustainable material optimization.
+This project implements a multi-modal materials informatics pipeline designed to bridge the gap between legacy metallurgical documentation and modern machine learning. It features a robust extraction engine for unstructured PDFs and a predictive model that integrates chemical composition, heat treatment parameters, and sustainability metrics for material optimization.
 
 ## 🔍 Features
-- PDF text + table extraction: Automated digitization of legacy records.
-- Scientific entity extraction using spaCy + regex: Pattern-based recognition of alloy chemistry (C, Mn, etc.).
-- Structured dataset generation (.csv)
-- Sustainable Analytics: CO2 footprint estimation based on heat-treatment energy requirements.
-- ML regression model for tensile strength prediction
-- Expandable to SciBERT/MatsciBERT entity recognition
-
+- Knowledge Extraction (NLP): Automated digitization of legacy metallurgical records using a SciBERT-ready extraction interface.
+- Hybrid Extraction Logic: Utilizes a high-precision, deterministic layer (Regex) to ensure zero-hallucination extraction of critical numerical values (MPa, $^\circ$C, wt%).
+- Sustainable Materials Design: Real-time Carbon Footprint (CO2) estimation based on thermodynamic energy requirements of heat-treatment cycles.
+- Domain-Aware Imputation: Intelligent data fusion that fills gaps in chemical compositions using grade-specific statistical averages.
+- Predictive Analytics: Random Forest regression for Tensile Strength prediction.
+  
 ## 📁 Files
 | File | Type | Purpose |
 |---|---|---|
@@ -22,10 +21,3 @@ This project is a multi-modal pipeline designed to bridge the gap between legacy
 pip install -r requirements.txt
 python code/extraction_pipeline.py
 
-Future Work
-
-Fine-tune SciBERT for domain extraction
-
-Build a multimodal property prediction model
-
-Benchmark against baselines for PhD-grade publication
