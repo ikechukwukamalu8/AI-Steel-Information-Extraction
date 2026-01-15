@@ -16,30 +16,28 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score
 
-# --- DIRECTORY CONFIGURATION ---
-# Uses relative paths so the project works immediately after cloning
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-RESULTS_DIR = os.path.join(BASE_DIR, "results")
-MAIN_DATA_PATH = os.path.join(DATA_DIR, "final_steel_data.csv")
-OUTPUT_CSV = os.path.join(RESULTS_DIR, "combined_steel_data_final.csv")
-
-# List of PDFs expected in the /data folder
-PDF_FILES = ["Old Laboratory Notebook.pdf", "Metallurgical Study – AISI Steel Grades.pdf"]
+# --- LOCAL CONFIGURATION ---
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+RESULTS_DIR = BASE_DIR / "results"
+MAIN_DATA_PATH = DATA_DIR / "final_steel_data.csv"
 
 # Ensure directories exist
-os.makedirs(DATA_DIR, exist_ok=True)
-os.makedirs(RESULTS_DIR, exist_ok=True)
+DATA_DIR.mkdir(exist_ok=True)
+RESULTS_DIR.mkdir(exist_ok=True)
+
+PDF_FILES = ["Old Laboratory Notebook.pdf", "Metallurgical Study – AISI Steel Grades.pdf"]
+OUTPUT_CSV = RESULTS_DIR / "combined_steel_data_final.csv"
 
 # -----------------------------------------------------------
 # 1. NLP LAYER: SCI-ENTITY EXTRACTION
 # -----------------------------------------------------------
 def scibert_entity_extractor(text_chunk):
-    """Uses regex to simulate transformer-based entity extraction."""
     entities = {
         "grade": re.search(r"(\d{4})\s*(?:steel|grade|alloy)", text_chunk, re.I) or \
                  re.search(r"(?:Grade|steel)\s*(\d{4})", text_chunk, re.I),
@@ -74,7 +72,6 @@ def extract_samples_from_text(text, filename):
 # -----------------------------------------------------------
 def calculate_carbon_footprint(temp_c):
     if pd.isna(temp_c): return 0
-    # Formula for industrial energy consumption of heat treatment
     energy_kwh = (1.0 * 0.49 * (temp_c - 25)) / (0.6 * 3600)
     return energy_kwh * 0.4 
 
@@ -82,46 +79,38 @@ def calculate_carbon_footprint(temp_c):
 # 3. DATA FUSION & SMART IMPUTATION
 # -----------------------------------------------------------
 def prepare_dataset():
-    print(f"--- 📂 Phase 1: NLP Knowledge Extraction ---")
+    print("--- 📂 Phase 1: NLP Knowledge Extraction ---")
     all_extracted = []
     for pdf_name in PDF_FILES:
-        path = os.path.join(DATA_DIR, pdf_name)
-        if os.path.exists(path):
+        path = DATA_DIR / pdf_name
+        if path.exists():
             with pdfplumber.open(path) as pdf:
                 text = "\n".join([p.extract_text() or "" for p in pdf.pages])
                 all_extracted.extend(extract_samples_from_text(text, pdf_name))
-        else:
-            print(f"Warning: {pdf_name} not found in {DATA_DIR}")
     
     pdf_df = pd.DataFrame(all_extracted)
-    print("--- 📂 Phase 2: Domain-Aware Imputation & Fusion ---")
     
-    if os.path.exists(MAIN_DATA_PATH):
+    print("--- 📂 Phase 2: Domain-Aware Imputation & Fusion ---")
+    if MAIN_DATA_PATH.exists():
         main_df = pd.read_csv(MAIN_DATA_PATH)
         df = pd.concat([main_df, pdf_df], ignore_index=True)
-        
-        # Fill missing chemical values based on steel grade averages
-        df['carbon_pct'] = df.groupby('grade')['carbon_pct'].transform(lambda x: x.fillna(x.mean()))
-        df['manganese_pct'] = df.groupby('grade')['manganese_pct'].transform(lambda x: x.fillna(x.mean()))
-        
+        mask = df['grade'] != "Unknown"
+        df.loc[mask, 'carbon_pct'] = df[mask].groupby('grade')['carbon_pct'].transform(lambda x: x.fillna(x.mean()))
+        df.loc[mask, 'manganese_pct'] = df[mask].groupby('grade')['manganese_pct'].transform(lambda x: x.fillna(x.mean()))
+        df = df.dropna(subset=['tensile_strength'])
         df = df.fillna(df.mean(numeric_only=True))
         df['carbon_footprint_kgCO2'] = df['quench_temp'].apply(calculate_carbon_footprint)
-        
         df.to_csv(OUTPUT_CSV, index=False)
-        print(f"Successfully saved merged data to: {OUTPUT_CSV}")
         return df
     else:
-        print(f"Error: {MAIN_DATA_PATH} missing. Using extracted data only.")
+        print(f"Dataset not found at {MAIN_DATA_PATH}. Check your /data folder.")
         return pdf_df
 
 # -----------------------------------------------------------
-# 4. RESEARCH ANALYTICS (ML) WITH FEATURE IMPORTANCE
+# 4. RESEARCH ANALYTICS
 # -----------------------------------------------------------
 def train_research_model(df):
-    if df.empty:
-        print("Dataset is empty. Skipping ML phase.")
-        return
-
+    if df.empty: return
     print("--- 🤖 Phase 3: Predictive Modeling & Evaluation ---")
     features = ["carbon_pct", "manganese_pct", "quench_temp", "temper_time"]
     X = df[features]
@@ -135,34 +124,25 @@ def train_research_model(df):
     r2 = r2_score(y_test, predictions)
     print(f"Model Performance Score (R2): {r2:.4f}")
 
-    # Feature Importance
     importances = model.feature_importances_
-    feat_imp_df = pd.DataFrame({
-        'Feature': features,
-        'Importance': importances
-    }).sort_values(by='Importance', ascending=False)
-    
-    print("\nFeature Importance Rankings:")
-    print(feat_imp_df)
+    feat_imp_df = pd.DataFrame({'Feature': features, 'Importance': importances}).sort_values(by='Importance', ascending=False)
 
-    # Plotting
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+    fig = plt.figure(figsize=(18, 5))
+    ax1 = fig.add_subplot(1, 3, 1)
+    sns.regplot(x=y_test, y=predictions, scatter_kws={'alpha':0.4, 'color':'teal'}, line_kws={'color':'red'}, ax=ax1)
+    ax1.set_title(f"Actual vs Predicted (R2: {r2:.3f})")
 
-    # Actual vs Predicted
-    sns.regplot(x=y_test, y=predictions, scatter_kws={'alpha':0.4, 'color':'teal'}, 
-                line_kws={'color':'red'}, ax=ax1)
-    ax1.set_title(f"Actual vs Predicted Strength (R2: {r2:.3f})")
-    ax1.set_xlabel("Actual Tensile Strength (MPa)")
-    ax1.set_ylabel("AI Predicted Strength (MPa)")
+    ax2 = fig.add_subplot(1, 3, 2)
+    sns.barplot(x='Importance', y='Feature', data=feat_imp_df, hue='Feature', palette='viridis', legend=False, ax=ax2)
+    ax2.set_title("Key Drivers of Strength")
 
-    # Feature Importance Chart
-    sns.barplot(x='Importance', y='Feature', data=feat_imp_df, palette='viridis', ax=ax2)
-    ax2.set_title("Metallurgical Drivers of Strength")
-    ax2.set_xlabel("Relative Importance Weight")
-    
+    ax3 = fig.add_subplot(1, 3, 3)
+    corr = df[features + ["tensile_strength"]].corr()
+    sns.heatmap(corr, annot=True, cmap='coolwarm', fmt=".2f", ax=ax3)
+    ax3.set_title("Property Correlation Matrix")
+
     plt.tight_layout()
-    plt.savefig(os.path.join(RESULTS_DIR, "model_metrics.png"))
-    print(f"Plots saved to: {RESULTS_DIR}")
+    plt.savefig(RESULTS_DIR / "comprehensive_analysis.png")
     plt.show()
 
 if __name__ == "__main__":
