@@ -32,7 +32,7 @@ RESULTS_DIR.mkdir(exist_ok=True)
 
 # File configuration
 PDF_FILES = [
-    "Old Laboratory Notebook.pdf",
+    "Old_Laboratory_Notebook.pdf",
     "Study_AISI_Grades.pdf"
 ]
 MAIN_DATA_PATH = DATA_DIR / "final_steel_data.csv"
