@@ -20,20 +20,20 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score
 
-# --- CONFIGURATION (GITHUB VERSION) ---
+# --- CONFIGURATION ---
 # Use relative paths so it works on any computer
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data" 
 RESULTS_DIR = BASE_DIR / "results"
 
-# Automatically create directories if they don't exist
+# Automatically create directories if they do not exist
 DATA_DIR.mkdir(exist_ok=True)
 RESULTS_DIR.mkdir(exist_ok=True)
 
 # File configuration
 PDF_FILES = [
-    "Old Laboratory Notebook (1).pdf",
-    "Study_AISI_Grades (1).pdf"
+    "Old Laboratory Notebook.pdf",
+    "Study_AISI_Grades.pdf"
 ]
 MAIN_DATA_PATH = DATA_DIR / "final_steel_data.csv"
 OUTPUT_CSV = RESULTS_DIR / "combined_steel_data_final.csv"
