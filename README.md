@@ -16,7 +16,6 @@ This project implements a multi-modal materials informatics pipeline designed to
 |---|---|---|
 | `Old_Laboratory_Notebook.pdf` | PDF | Handwritten notes + heat logs |
 | `Study_AISI_Steel_Grades.pdf` | PDF | Alloy composition and strength tables |
-| `Study_AISI_Steel_Grades.pdf` | PDF | Alloy composition and strength tables |
 | `final_steel_data.csv` | CSV | Clean dataset for model training |
 
 ## 🚀 Run Code
