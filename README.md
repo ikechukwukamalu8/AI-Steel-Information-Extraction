@@ -9,12 +9,14 @@ This project implements a multi-modal materials informatics pipeline designed to
 - Domain-Aware Imputation: Intelligent data fusion that fills gaps in chemical compositions using grade-specific statistical averages.
 - Predictive Analytics: Random Forest regression for Tensile Strength prediction.
 - Advanced Analytics: Generates feature importance rankings and property correlation matrices.
+- Explainable AI (XAI): Integrated SHAP (SHapley Additive exPlanations) analysis to decode the nonlinear relationships between alloying elements and mechanical performance, providing a transparent "white-box" view of model decision-making.
   
 ## 📁 Files
 | File | Type | Purpose |
 |---|---|---|
-| `Old Laboratory Notebook.pdf` | PDF | Handwritten notes + heat logs |
-| `Metallurgical Study – AISI Steel Grades.pdf` | PDF | Alloy composition and strength tables |
+| `Old_Laboratory_Notebook.pdf` | PDF | Handwritten notes + heat logs |
+| `Study_AISI_Steel_Grades.pdf` | PDF | Alloy composition and strength tables |
+| `Study_AISI_Steel_Grades.pdf` | PDF | Alloy composition and strength tables |
 | `final_steel_data.csv` | CSV | Clean dataset for model training |
 
 ## 🚀 Run Code
